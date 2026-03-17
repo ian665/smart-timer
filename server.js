@@ -1,6 +1,6 @@
 const express = require('express');
 const app = express();
-const port = process.env.PORT || 3000;;
+const port = process.env.PORT || 3000;
 
 const htmlContent = `
 <!DOCTYPE html>
@@ -8,109 +8,128 @@ const htmlContent = `
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>智慧儀表板 Pro (防烙印護眼版)</title>
+    <title>智慧儀表板 Pro (淡色明亮版)</title>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=Roboto:wght@100;300;400;500;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <style>
         :root {
-            --glass-bg: rgba(25, 30, 40, 0.7);
-            --glass-border: rgba(255, 255, 255, 0.08);
-            --glass-shadow: 0 10px 40px rgba(0, 0, 0, 0.4);
-            --theme-blue: #64b5f6;
-            --text-main: #ffffff;
-            --text-muted: #9aa0a6;
-            /* 防烙印位移變數 */
+            /* 預設為：淡色系明亮毛玻璃 */
+            --glass-bg: rgba(255, 255, 255, 0.65);
+            --glass-border: rgba(255, 255, 255, 0.5);
+            --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.08);
+            --theme-blue: #1976d2; /* 深一點的藍色，淺底才清楚 */
+            --text-main: #2c3e50; /* 深灰黑色 */
+            --text-muted: #546e7a; /* 淺灰藍色 */
             --shift-x: 0px;
             --shift-y: 0px;
         }
 
-        /* 夜間模式的變數覆蓋 */
+        /* 夜間模式時的變數 (回到深黑暖色) */
         body.night-mode {
-            --glass-bg: rgba(10, 10, 12, 0.85);
-            --glass-border: rgba(255, 255, 255, 0.03);
-            --theme-blue: #e67e22; /* 轉為護眼暖橘色 */
+            background: #121212 !important;
+            --glass-bg: rgba(15, 15, 18, 0.85);
+            --glass-border: rgba(255, 255, 255, 0.05);
+            --theme-blue: #e67e22; 
             --text-main: #dcd0c0;
             --text-muted: #7a7570;
         }
 
         body {
             margin: 0; padding: 0; width: 100vw; height: 100vh;
-            background: #121212; background-size: cover; background-position: center;
+            /* 預設淡色漸層背景：非常清新的淺藍到淺紫白 */
+            background: linear-gradient(135deg, #e0eafc 0%, #cfdef3 100%); 
+            background-size: cover; background-position: center;
             color: var(--text-main); font-family: 'Noto Sans TC', sans-serif;
             overflow: hidden; box-sizing: border-box; padding: 3vh 3vw;
-            transition: background-color 2s ease;
+            transition: background 2s ease, color 2s ease;
         }
         
-        /* 夜間護眼濾鏡 (降低整體亮度與藍光) */
         #night-filter {
             position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
-            background: rgba(20, 10, 0, 0.55); /* 黑色帶點暖色調的半透明遮罩 */
-            pointer-events: none; z-index: 900;
+            background: rgba(15, 5, 0, 0.4); pointer-events: none; z-index: 900;
             opacity: 0; transition: opacity 3s ease-in-out;
         }
         body.night-mode #night-filter { opacity: 1; }
         
-        /* Dashboard 加上防烙印位移與動畫 */
         .dashboard {
             display: grid; grid-template-columns: 1fr 1.3fr; grid-template-rows: 1fr 1fr;
             gap: 20px; width: 100%; height: 100%;
             transform: translate(var(--shift-x), var(--shift-y));
-            transition: transform 3s ease-in-out; /* 3秒平滑移動，肉眼難以察覺 */
+            transition: transform 3s ease-in-out;
         }
 
         .glass-panel {
             background: var(--glass-bg); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px);
             border: 1px solid var(--glass-border); border-radius: 20px; box-shadow: var(--glass-shadow);
             padding: 25px; display: flex; flex-direction: column; position: relative;
-            transition: all 2s ease; /* 配合夜間模式的色彩漸變 */
+            transition: all 2s ease;
         }
         
         .panel-left { grid-column: 1 / 2; grid-row: 1 / 3; justify-content: center; align-items: center; text-align: center; }
         #clock { font-family: 'Roboto'; font-weight: 300; font-size: 15vw; line-height: 1; margin-bottom: 5px; transition: color 2s ease; color: var(--text-main); }
         #date-display { font-size: 2.5vw; font-weight: 300; color: var(--text-muted); letter-spacing: 2px; margin-bottom: 30px; transition: color 2s ease; }
         
-        .status-list { font-size: 1.3vw; color: var(--text-muted); margin-bottom: 20px; display: flex; flex-direction: column; gap: 10px; text-align: left; width: 80%; transition: color 2s ease; }
+        .status-list { font-size: 1.3vw; color: var(--text-muted); margin-bottom: 20px; display: flex; flex-direction: column; gap: 10px; text-align: left; width: 80%; transition: color 2s ease; font-weight: 500;}
         .status-list i { width: 25px; text-align: center; color: var(--theme-blue); transition: color 2s ease; }
 
         .auto-hide { transition: opacity 0.8s ease-in-out; opacity: 1; }
         body.idle .auto-hide { opacity: 0; pointer-events: none; }
         
+        /* 按鈕在淡色模式下要有一點陰影與半透明白底 */
         .controls { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: auto; width: 100%; position: relative; z-index: 910; }
         button, .upload-btn { 
-            background: rgba(255, 255, 255, 0.05); border: 1px solid var(--glass-border); color: white; 
+            background: rgba(255, 255, 255, 0.5); border: 1px solid rgba(0,0,0,0.05); color: var(--text-main); 
             padding: 10px 18px; border-radius: 10px; font-size: 1.2vw; cursor: pointer; transition: 0.2s; 
-            display: flex; align-items: center; gap: 8px;
+            display: flex; align-items: center; gap: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.02); font-weight: 500;
         }
-        button:hover, .upload-btn:hover { background: rgba(255, 255, 255, 0.1); }
-        input[type="time"] { background: rgba(0,0,0,0.5); color: white; border: 1px solid var(--glass-border); border-radius: 10px; padding: 8px; outline: none; color-scheme: dark; font-family: 'Roboto'; }
+        button:hover, .upload-btn:hover { background: rgba(255, 255, 255, 0.9); }
+        input[type="time"] { background: rgba(255,255,255,0.6); color: var(--text-main); border: 1px solid rgba(0,0,0,0.1); border-radius: 10px; padding: 8px; outline: none; font-family: 'Roboto'; font-weight: 500;}
+        
+        /* 夜間模式按鈕覆寫 */
+        body.night-mode button, body.night-mode .upload-btn { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); box-shadow: none; }
+        body.night-mode input[type="time"] { background: rgba(0,0,0,0.5); color: white; color-scheme: dark; border-color: rgba(255,255,255,0.1);}
 
         .panel-right-top { grid-column: 2 / 3; grid-row: 1 / 2; justify-content: flex-start; gap: 15px; }
-        .weather-header { display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: 10px; }
+        .weather-header { display: flex; justify-content: space-between; align-items: flex-end; padding-bottom: 10px; border-bottom: 1px solid rgba(0,0,0,0.05); }
+        body.night-mode .weather-header { border-bottom: 1px solid rgba(255,255,255,0.05); }
+        
         .current-temp-block { display: flex; align-items: center; gap: 20px; }
         #current-temp { font-family: 'Roboto'; font-size: 5vw; font-weight: 400; line-height: 1; transition: color 2s ease; color: var(--text-main); }
         #current-condition { font-size: 4vw; line-height: 1; }
         
-        .weather-details { font-size: 1.3vw; color: var(--text-muted); text-align: right; display: flex; flex-direction: column; gap: 5px; transition: color 2s ease; }
+        .weather-details { font-size: 1.3vw; color: var(--text-muted); text-align: right; display: flex; flex-direction: column; gap: 5px; transition: color 2s ease; font-weight: 500;}
         .weather-details i { color: var(--theme-blue); width: 20px; text-align: center; transition: color 2s ease; }
         
         .forecast-grid { display: flex; justify-content: space-between; gap: 10px; flex: 1; }
-        .forecast-item { display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(255,255,255,0.03); border-radius: 15px; flex: 1; padding: 10px 5px; gap: 8px; }
-        .forecast-item .day { font-size: 1.1vw; color: var(--text-muted); transition: color 2s ease; }
+        .forecast-item { display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.03); border-radius: 15px; flex: 1; padding: 10px 5px; gap: 8px; transition: background 2s ease; }
+        body.night-mode .forecast-item { background: rgba(255,255,255,0.03); }
+        .forecast-item .day { font-size: 1.1vw; color: var(--text-muted); transition: color 2s ease; font-weight: 500;}
         .forecast-item .icon { font-size: 1.8vw; }
         .forecast-item .temp { font-family: 'Roboto'; font-size: 1.2vw; font-weight: 500; transition: color 2s ease; color: var(--text-main); }
-        .forecast-item .details { font-size: 0.9vw; color: var(--text-muted); text-align: center; display: flex; flex-direction: column; gap: 3px; transition: color 2s ease; }
+        .forecast-item .details { font-size: 0.9vw; color: var(--text-muted); text-align: center; display: flex; flex-direction: column; gap: 3px; transition: color 2s ease; font-weight: 500;}
 
         .panel-right-bottom { grid-column: 2 / 3; grid-row: 2 / 3; display: flex; flex-direction: column; }
-        .news-header { font-size: 1.4vw; color: var(--theme-blue); font-weight: 500; margin-bottom: 15px; display: flex; align-items: center; gap: 10px; transition: color 2s ease; }
+        .news-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; transition: color 2s ease; }
+        .news-title-area { font-size: 1.4vw; color: var(--theme-blue); font-weight: 700; display: flex; align-items: center; gap: 10px; transition: color 2s ease; }
+        
+        .news-lang-select { 
+            background: rgba(255, 255, 255, 0.6); color: var(--text-main); 
+            border: 1px solid rgba(0,0,0,0.1); border-radius: 8px; 
+            padding: 5px 12px; font-size: 1.1vw; cursor: pointer; outline: none; 
+            transition: 0.2s; font-family: 'Noto Sans TC'; font-weight: 500;
+        }
+        body.night-mode .news-lang-select { background: rgba(0,0,0,0.5); color: white; border-color: rgba(255,255,255,0.2); }
+        
         .news-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 15px; flex: 1; transition: opacity 0.5s ease-in-out; opacity: 1; }
-        .news-card { background: rgba(255, 255, 255, 0.04); border: 1px solid rgba(255, 255, 255, 0.03); border-radius: 12px; padding: 15px; font-size: 1.4vw; font-weight: 300; line-height: 1.5; color: var(--text-main); overflow: hidden; display: flex; align-items: flex-start; transition: color 2s ease; }
+        .news-card { background: rgba(0,0,0,0.03); border: 1px solid rgba(0,0,0,0.05); border-radius: 12px; padding: 15px; font-size: 1.4vw; font-weight: 400; line-height: 1.5; color: var(--text-main); overflow: hidden; display: flex; align-items: flex-start; transition: all 2s ease; }
+        body.night-mode .news-card { background: rgba(255,255,255,0.04); border-color: rgba(255,255,255,0.03); font-weight: 300; }
         .news-card span { display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden; }
 
         .overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 999; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); text-align: center; }
         @keyframes pulseRed { 0% { background: rgba(220, 53, 69, 0.85); } 50% { background: rgba(140, 20, 30, 0.9); } 100% { background: rgba(220, 53, 69, 0.85); } }
-        .eq-active { animation: pulseRed 1s infinite !imant; }
+        .eq-active { animation: pulseRed 1s infinite !important; }
         @keyframes pulseBlue { 0% { background: rgba(13, 71, 161, 0.85); } 50% { background: rgba(10, 35, 80, 0.9); } 100% { background: rgba(13, 71, 161, 0.85); } }
-        .alarm-active { animation: pulseBlue 1.5s infinite !imant; }
+        .alarm-active { animation: pulseBlue 1.5s infinite !important; }
         .overlay h1 { font-size: 6vw; margin: 0 0 20px; font-weight: 700; display: flex; align-items: center; gap: 20px; color: white;}
         .overlay p { font-size: 2.5vw; margin-bottom: 40px; line-height: 1.5; color: white;}
         .overlay button { font-size: 1.8vw; padding: 15px 50px; background: white; color: black; border-radius: 50px; font-weight: bold; cursor: pointer; }
@@ -127,7 +146,7 @@ const htmlContent = `
             <div class="status-list">
                 <div id="wakeStatus"><i class="fa-regular fa-lightbulb"></i> 恆亮未啟用</div>
                 <div id="eqStatus"><i class="fa-solid fa-tower-broadcast"></i> 地震監控中...</div>
-                <div id="alarmStatus" style="color: #4caf50; display: none;"><i class="fa-regular fa-bell"></i> 鬧鐘已設定</div>
+                <div id="alarmStatus" style="color: #2e7d32; display: none;"><i class="fa-regular fa-bell"></i> 鬧鐘已設定</div>
                 <div id="location"><i class="fa-solid fa-location-crosshairs"></i> 定位中...</div>
             </div>
 
@@ -135,13 +154,13 @@ const htmlContent = `
                 <button id="fullscreenBtn"><i class="fa-solid fa-expand"></i> 全螢幕</button>
                 <button id="wakeBtn"><i class="fa-solid fa-bolt"></i> 恆亮</button>
                 <label class="upload-btn"><i class="fa-regular fa-image"></i> 背景<input type="file" id="bgInput" accept="image/*" style="display: none;"></label>
-                <button id="testNightBtn" style="color: #f39c12;"><i class="fa-solid fa-moon"></i> 夜間測試</button>
-                <button id="testEqBtn" style="color: #9aa0a6;"><i class="fa-solid fa-triangle-exclamation"></i> 警報</button>
+                <button id="testNightBtn" style="color: #d35400;"><i class="fa-solid fa-moon"></i> 夜間測試</button>
+                <button id="testEqBtn" style="color: var(--text-muted);"><i class="fa-solid fa-triangle-exclamation"></i> 警報</button>
                 
                 <div style="display: flex; gap: 5px; width: 100%; justify-content: center; margin-top: 10px;">
                     <input type="time" id="alarmTimeInput">
                     <button id="setAlarmBtn"><i class="fa-solid fa-check"></i> 設鬧鐘</button>
-                    <button id="cancelAlarmBtn" style="display:none; color: #ff5252;"><i class="fa-solid fa-xmark"></i> 取消</button>
+                    <button id="cancelAlarmBtn" style="display:none; color: #e74c3c;"><i class="fa-solid fa-xmark"></i> 取消</button>
                 </div>
             </div>
         </div>
@@ -161,12 +180,21 @@ const htmlContent = `
         </div>
 
         <div class="glass-panel panel-right-bottom">
-            <div class="news-header"><i class="fa-regular fa-newspaper"></i> 焦點即時新聞</div>
+            <div class="news-header">
+                <div class="news-title-area">
+                    <i class="fa-regular fa-newspaper"></i> <span id="news-source-title">焦點即時新聞</span>
+                </div>
+                <select id="newsLangSelect" class="news-lang-select auto-hide">
+                    <option value="zh">中文 (PTS)</option>
+                    <option value="en">English (Yahoo US)</option>
+                    <option value="jp">日本語 (Yahoo JP)</option>
+                </select>
+            </div>
             <div class="news-grid" id="news-grid">
-                <div class="news-card"><span>新聞載入中...</span></div>
-                <div class="news-card"><span>新聞載入中...</span></div>
-                <div class="news-card"><span>新聞載入中...</span></div>
-                <div class="news-card"><span>新聞載入中...</span></div>
+                <div class="news-card"><span>連線中...</span></div>
+                <div class="news-card"><span>連線中...</span></div>
+                <div class="news-card"><span>連線中...</span></div>
+                <div class="news-card"><span>連線中...</span></div>
             </div>
         </div>
     </div>
@@ -182,21 +210,19 @@ const htmlContent = `
     </div>
 
     <script>
-        // === 氣象署 API 金鑰 ===
         const CWA_API_KEY = 'CWA-847DA1DF-CF0B-4E3D-8C8F-5DE7DB24EDD8'; 
         let audioCtx;
 
-        // --- A. OLED 防烙印 (Pixel Shifting) ---
+        // --- 防烙印 (Pixel Shifting) ---
         function applyPixelShift() {
-            // 在 -4 到 +4 像素之間隨機產生位移
             const shiftX = Math.floor(Math.random() * 9) - 4;
             const shiftY = Math.floor(Math.random() * 9) - 4;
             document.documentElement.style.setProperty('--shift-x', shiftX + 'px');
             document.documentElement.style.setProperty('--shift-y', shiftY + 'px');
         }
-        setInterval(applyPixelShift, 60000); // 每分鐘微調一次
+        setInterval(applyPixelShift, 60000);
 
-        // --- B. 閒置自動隱藏 UI ---
+        // --- 閒置隱藏 UI ---
         let idleTimer;
         function resetIdleTimer() {
             document.body.classList.remove('idle');
@@ -206,7 +232,7 @@ const htmlContent = `
         window.addEventListener('mousemove', resetIdleTimer); window.addEventListener('touchstart', resetIdleTimer); window.addEventListener('click', resetIdleTimer);
         resetIdleTimer();
 
-        // --- C. 全螢幕 ---
+        // --- 全螢幕 ---
         const fullscreenBtn = document.getElementById('fullscreenBtn');
         fullscreenBtn.addEventListener('click', () => {
             if (!document.fullscreenElement) {
@@ -218,10 +244,8 @@ const htmlContent = `
             }
         });
 
-        // --- 1. 時鐘、日期與 夜間模式判斷 ---
-        let targetAlarmTime = null, isAlarmRinging = false;
-        let manualNightMode = false; // 用於手動測試
-
+        // --- 時鐘、日期與 夜間模式判斷 ---
+        let targetAlarmTime = null, isAlarmRinging = false, manualNightMode = false;
         function updateClock() {
             const now = new Date();
             const hh = String(now.getHours()).padStart(2, '0');
@@ -230,26 +254,18 @@ const htmlContent = `
             document.getElementById('clock').textContent = \`\${hh}:\${mm}\`;
             document.getElementById('date-display').textContent = now.toLocaleDateString('zh-TW', { month: 'long', day: 'numeric', weekday: 'long' });
             
-            // 夜間模式邏輯：晚上 11 點 (23) 到 早上 6 點前 (0~5)
             const hour = now.getHours();
             const isNightTime = hour >= 23 || hour < 6;
-            if (isNightTime || manualNightMode) {
-                document.body.classList.add('night-mode');
-            } else {
-                document.body.classList.remove('night-mode');
-            }
+            if (isNightTime || manualNightMode) document.body.classList.add('night-mode');
+            else document.body.classList.remove('night-mode');
 
             if (targetAlarmTime === \`\${hh}:\${mm}\` && ss === '00' && !isAlarmRinging) triggerAlarm();
         }
         setInterval(updateClock, 1000); updateClock();
 
-        // 夜間模式測試按鈕
-        document.getElementById('testNightBtn').addEventListener('click', () => {
-            manualNightMode = !manualNightMode;
-            updateClock(); // 立即套用
-        });
+        document.getElementById('testNightBtn').addEventListener('click', () => { manualNightMode = !manualNightMode; updateClock(); });
 
-        // 鬧鐘記憶邏輯
+        // --- 背景與鬧鐘記憶 ---
         const setAlarmBtn = document.getElementById('setAlarmBtn'), cancelAlarmBtn = document.getElementById('cancelAlarmBtn'), alarmTimeInput = document.getElementById('alarmTimeInput');
         let alarmSoundInterval;
         const savedAlarm = localStorage.getItem('smartDisplay_alarm');
@@ -258,7 +274,6 @@ const htmlContent = `
             document.getElementById('alarmStatus').style.display = 'block'; document.getElementById('alarmStatus').innerHTML = \`<i class="fa-regular fa-bell"></i> 鬧鐘 \${targetAlarmTime}\`;
             setAlarmBtn.style.display = 'none'; cancelAlarmBtn.style.display = 'flex'; alarmTimeInput.style.display = 'none';
         }
-
         setAlarmBtn.addEventListener('click', () => {
             if (alarmTimeInput.value) {
                 targetAlarmTime = alarmTimeInput.value; localStorage.setItem('smartDisplay_alarm', targetAlarmTime);
@@ -285,19 +300,46 @@ const htmlContent = `
             }
         });
 
-        // --- 2. 四格新聞網格 ---
+        // ==========================================
+        // 🌍 解決阻擋問題：改用超穩定的 Yahoo 新聞
+        // ==========================================
+        const newsFeeds = {
+            'zh': { url: 'https://news.pts.org.tw/xml/newsfeed.xml', title: '公視即時新聞' },
+            'en': { url: 'https://news.yahoo.com/rss/world', title: 'Yahoo World News' },
+            'jp': { url: 'https://news.yahoo.co.jp/rss/topics/top-picks.xml', title: 'Yahoo! Japan ニュース' }
+        };
+
         let newsList = [], currentNewsPage = 0, newsInterval;
-        async function fetchNews() {
+        const langSelect = document.getElementById('newsLangSelect');
+        const newsSourceTitle = document.getElementById('news-source-title');
+
+        const savedLang = localStorage.getItem('smartDisplay_newsLang') || 'zh';
+        langSelect.value = savedLang;
+        newsSourceTitle.textContent = newsFeeds[savedLang].title;
+
+        async function fetchNews(lang) {
             try {
-                const url = 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent('https://news.pts.org.tw/xml/newsfeed.xml');
-                const res = await fetch(url); const data = await res.json();
+                const rssUrl = encodeURIComponent(newsFeeds[lang].url);
+                const url = \`https://api.rss2json.com/v1/api.json?rss_url=\${rssUrl}&count=20\`;
+                
+                const res = await fetch(url); 
+                const data = await res.json();
+                
                 if (data.status === 'ok' && data.items.length > 0) {
                     newsList = data.items.map(i => i.title);
-                    if(!newsInterval) { showNextNews(); newsInterval = setInterval(showNextNews, 10000); }
+                    currentNewsPage = 0; 
+                    showNextNews();
+                    
+                    if(newsInterval) clearInterval(newsInterval);
+                    newsInterval = setInterval(showNextNews, 10000); 
                 }
-            } catch (err) {}
+            } catch (err) {
+                console.log("新聞載入失敗");
+            }
         }
+
         function showNextNews() {
+            if(newsList.length === 0) return;
             const grid = document.getElementById('news-grid');
             grid.style.opacity = 0; 
             setTimeout(() => {
@@ -310,11 +352,20 @@ const htmlContent = `
                 currentNewsPage++;
             }, 500);
         }
-        fetchNews(); setInterval(fetchNews, 60 * 60 * 1000);
+
+        langSelect.addEventListener('change', (e) => {
+            const lang = e.target.value;
+            localStorage.setItem('smartDisplay_newsLang', lang); 
+            newsSourceTitle.textContent = newsFeeds[lang].title;
+            document.getElementById('news-grid').style.opacity = 0;
+            setTimeout(() => fetchNews(lang), 500);
+        });
+
+        fetchNews(savedLang); 
+        setInterval(() => fetchNews(langSelect.value), 60 * 60 * 1000);
 
         // --- 3. 天氣與定位 ---
-        function getIconHtml(code, defaultColor) {
-            // 將原本寫死的顏色改成 inherit，讓夜間模式可以統一變色
+        function getIconHtml(code) {
             if (code === 0) return \`<i class="fa-solid fa-sun" style="color: var(--theme-blue);"></i>\`; 
             if (code <= 3) return \`<i class="fa-solid fa-cloud-sun" style="color: var(--theme-blue);"></i>\`; 
             if (code >= 45 && code <= 48) return \`<i class="fa-solid fa-smog" style="color: var(--text-muted);"></i>\`;
@@ -397,14 +448,14 @@ const htmlContent = `
                 if (data.success === 'true') {
                     const latestEq = data.records.Earthquake[0];
                     const eqTime = latestEq.EarthquakeInfo.OriginTime;
-                    document.getElementById('eqStatus').innerHTML = '<span style="color:#4caf50;"><i class="fa-solid fa-tower-broadcast"></i> 氣象署地震監控中</span>';
+                    document.getElementById('eqStatus').innerHTML = '<span style="color:#2e7d32;"><i class="fa-solid fa-tower-broadcast"></i> 氣象署地震監控中</span>';
                     if (!lastEqTime) { lastEqTime = eqTime; return; }
                     if (eqTime !== lastEqTime) {
                         lastEqTime = eqTime;
                         const reportContent = latestEq.ReportContent;
                         const magnitude = latestEq.EarthquakeInfo.EarthquakeMagnitude.MagnitudeValue;
                         const depth = latestEq.EarthquakeInfo.FocalDepth;
-                        triggerEqAlarm(\`芮氏規模：<span style="color:#ff5252; font-weight:bold;">\${magnitude}</span><br>深度：\${depth} 公里<br><br><span style="font-size: 2.2vw;">\${reportContent}</span>\`);
+                        triggerEqAlarm(\`芮氏規模：<span style="color:#e74c3c; font-weight:bold;">\${magnitude}</span><br>深度：\${depth} 公里<br><br><span style="font-size: 2.2vw;">\${reportContent}</span>\`);
                     }
                 }
             } catch (err) {}
@@ -416,7 +467,7 @@ const htmlContent = `
         }
         setInterval(checkRealEarthquake, 60000); setTimeout(checkRealEarthquake, 2000);
         
-        document.getElementById('testEqBtn').addEventListener('click', () => { triggerEqAlarm('【模擬測試】<br>芮氏規模：<span style="color:#ff5252; font-weight:bold;">7.2</span><br>深度：15.5 公里<br><br><span style="font-size: 2vw;">發生有感地震，請就近掩蔽。</span>'); });
+        document.getElementById('testEqBtn').addEventListener('click', () => { triggerEqAlarm('【模擬測試】<br>芮氏規模：<span style="color:#e74c3c; font-weight:bold;">7.2</span><br>深度：15.5 公里<br><br><span style="font-size: 2vw;">發生有感地震，請就近掩蔽。</span>'); });
         document.getElementById('dismissEqBtn').addEventListener('click', () => { document.body.classList.remove('eq-active'); document.getElementById('eq-overlay').style.display = 'none'; clearInterval(eqBeepInterval); });
         
         function triggerAlarm() {
@@ -437,5 +488,5 @@ app.get('/', (req, res) => {
 });
 
 app.listen(port, () => {
-    console.log('伺服器已啟動！請在瀏覽器打開 http://localhost:' + port);
+    console.log(`伺服器已啟動！請在瀏覽器打開 http://localhost:${port}`);
 });
