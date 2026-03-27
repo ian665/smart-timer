@@ -54,11 +54,50 @@
         .forecast-item .temp { font-family: 'Roboto'; font-size: 1.3vw; }
 
         /* 右下新聞區 */
-        .panel-right-bottom { grid-column: 2 / 3; grid-row: 2 / 3; justify-content: center; overflow: hidden; }
-        .news-header { font-size: 1.5vw; color: var(--theme-blue); font-weight: 500; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; }
-        .news-carousel-container { flex: 1; display: flex; align-items: center; position: relative; }
-        #news-text { font-size: 2.2vw; font-weight: 300; line-height: 1.5; transition: opacity 0.8s; opacity: 1; }
+        .panel-right-bottom { grid-column: 2 / 3; grid-row: 2 / 3; justify-content: flex-start; overflow: hidden; }
+        .news-header { font-size: 1.5vw; color: var(--theme-blue); font-weight: 500; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
+        .news-carousel-container { flex: 1; display: flex; align-items: center; position: relative; overflow: hidden; }
+        
+        /* 單則新聞的樣式 */
+        .news-item {
+            position: absolute;
+            width: 100%;
+            display: flex;
+            align-items: center;
+            gap: 1.5vw;
+            text-decoration: none;
+            color: white;
+            transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.6s ease;
+        }
+        .news-item img {
+            width: 8vw;
+            height: 5.5vw;
+            min-width: 80px;
+            min-height: 55px;
+            object-fit: cover;
+            border-radius: 10px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
+            flex-shrink: 0;
+        }
+        .news-item-text {
+            font-size: 2vw;
+            font-weight: 300;
+            line-height: 1.4;
+            display: -webkit-box;
+            -webkit-line-clamp: 2; /* 最多顯示兩行文字 */
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .news-item:hover .news-item-text {
+            color: var(--theme-blue);
+            text-decoration: underline;
+        }
 
+        /* 滾動動畫 class */
+        .slide-in { transform: translateY(100%); opacity: 0; animation: slideInAnim 0.8s forwards; }
+        .slide-out { animation: slideOutAnim 0.8s forwards; }
+        @keyframes slideInAnim { to { transform: translateY(0); opacity: 1; } }
+        @keyframes slideOutAnim { to { transform: translateY(-100%); opacity: 0; } }
         /* 覆蓋層 */
         .overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 999; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); text-align: center; }
         @keyframes pulseRed { 0% { background: rgba(255,0,0,0.8); } 50% { background: rgba(100,0,0,0.9); } 100% { background: rgba(255,0,0,0.8); } }
@@ -78,10 +117,10 @@
             <div id="date-display">載入中...</div>
             
             <div style="font-size: 1.5vw; color: #aaa; margin-bottom: 20px; display: flex; flex-direction: column; gap: 5px;">
-                <span id="wakeStatus">☀️ 恆亮未啟用</span>
-                <span id="eqStatus">📡 地震監控中...</span>
+                <span id="wakeStatus">恆亮未啟用</span>
+                <span id="eqStatus">地震監控中...</span>
                 <span id="alarmStatus" style="color: #2ed573; display: none;">⏰ 鬧鐘已設定</span>
-                <span id="location">📍 定位中...</span>
+                <span id="location">定位中...</span>
             </div>
 
             <div class="controls">
@@ -100,7 +139,6 @@
         <div class="glass-panel panel-right-top">
             <div class="weather-header">
                 <div class="current-temp-block">
-                    <span id="current-condition">☀️</span>
                     <span id="current-temp">--°</span>
                 </div>
                 <div class="weather-details">
@@ -112,20 +150,19 @@
         </div>
 
         <div class="glass-panel panel-right-bottom">
-            <div class="news-header">📰 公視即時新聞</div>
+            <div class="news-header">公視即時新聞</div>
             <div class="news-carousel-container">
-                <div id="news-text">新聞載入中...</div>
             </div>
         </div>
     </div>
 
     <div id="eq-overlay" class="overlay">
-        <h1>⚠️ 氣象署地震速報</h1>
+        <h1>氣象署地震速報</h1>
         <p id="eq-info-text">連線中...</p>
         <button id="dismissEqBtn">解除警報</button>
     </div>
     <div id="alarm-overlay" class="overlay">
-        <h1>⏰ 時間到！</h1>
+        <h1>時間到！</h1>
         <button id="dismissAlarmBtn">關閉鬧鐘</button>
     </div>
 
@@ -169,7 +206,7 @@
             setAlarmBtn.style.display = 'block'; cancelAlarmBtn.style.display = 'none'; alarmTimeInput.style.display = 'block'; alarmTimeInput.value = '';
         });
 
-        // --- 2. 新聞輪播 (公視 RSS) ---
+// --- 2. 新聞輪播 (公視 RSS) ---
         let newsList = [], currentNewsIndex = 0, newsInterval;
         async function fetchNews() {
             try {
@@ -195,7 +232,6 @@
             }, 800);
         }
         fetchNews(); setInterval(fetchNews, 60 * 60 * 1000);
-
         // --- 3. 天氣與定位 (Open-Meteo) ---
         function getWeatherEmoji(code) {
             if (code === 0) return '☀️'; if (code <= 3) return '⛅'; if (code >= 45 && code <= 48) return '🌫️';

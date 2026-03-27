@@ -130,10 +130,11 @@ const htmlContent = `
             transition: all 2s ease;
         }
         
-        /* 左側：時鐘 */
+        /* 左側：時鐘 (還原為簡約版) */
         .panel-left { grid-column: 1 / 2; grid-row: 1 / 3; justify-content: center; align-items: center; text-align: center; }
         #clock { font-family: 'Roboto'; font-weight: 300; font-size: 15vw; line-height: 1; margin-bottom: 5px; text-shadow: 0 4px 20px rgba(0,0,0,0.5); }
         #date-display { font-size: 2.5vw; font-weight: 300; color: var(--text-muted); letter-spacing: 2px; margin-bottom: 30px; }
+        
         .status-list { font-size: 1.3vw; color: var(--text-muted); margin-bottom: 20px; display: flex; flex-direction: column; gap: 10px; text-align: left; width: 80%; font-weight: 500;}
         .status-list i { width: 25px; text-align: center; color: var(--theme-blue); }
 
@@ -177,14 +178,27 @@ const htmlContent = `
         
         .news-lang-select { background: rgba(0, 0, 0, 0.3); color: var(--text-main); border: 1px solid rgba(255,255,255,0.2); border-radius: 8px; padding: 4px 10px; font-size: 1vw; cursor: pointer; outline: none; transition: 0.2s; }
         
-        /* 滑動軌道 */
+        /* 滑動軌道 (新聞與股市切換) */
         .slider-viewport { flex: 1; overflow: hidden; position: relative; width: 100%; cursor: grab; }
         .slider-viewport:active { cursor: grabbing; }
         .slider-track { display: flex; width: 200%; height: 100%; transition: transform 0.4s cubic-bezier(0.25, 1, 0.5, 1); }
-        
         .slide-page { width: 50%; height: 100%; display: flex; flex-direction: column; padding: 0 5px; box-sizing: border-box; }
         
-        /* 網格卡片共用樣式 (新聞與股市) */
+        /* ================= 新聞順暢交叉淡入淡出動畫 ================= */
+        #news-container-wrapper { position: relative; width: 100%; height: 100%; }
+        .news-grid-page { 
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%; 
+            display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 15px;
+            transition: opacity 0.8s ease, transform 0.8s cubic-bezier(0.25, 1, 0.5, 1);
+        }
+        /* 新頁面：從下方稍微浮上來並淡入 */
+        .page-enter { opacity: 0; transform: translateY(20px); }
+        .page-enter-active { opacity: 1; transform: translateY(0); }
+        /* 舊頁面：往上方稍微滑去並淡出 */
+        .page-exit-active { opacity: 0; transform: translateY(-20px); pointer-events: none; }
+        /* ========================================================== */
+
+        /* 網格卡片共用樣式 */
         .grid-container { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 15px; flex: 1; }
         .data-card { background: rgba(0,0,0,0.2); border: 1px solid rgba(255,255,255,0.08); border-radius: 12px; padding: 15px; color: var(--text-main); display: flex; flex-direction: column; justify-content: center; box-shadow: inset 0 0 20px rgba(255,255,255,0.02); }
         
@@ -195,7 +209,6 @@ const htmlContent = `
         .stock-name { font-size: 1.2vw; color: var(--text-muted); font-weight: 500; margin-bottom: 5px; }
         .stock-price { font-family: 'Roboto'; font-size: 2.2vw; font-weight: 700; }
         .stock-change { font-family: 'Roboto'; font-size: 1.1vw; font-weight: 500; display: flex; align-items: center; gap: 5px; margin-top: 5px; }
-        /* 台灣習慣：紅漲綠跌 */
         .up { color: #ff5252; }
         .down { color: #4caf50; }
 
@@ -270,11 +283,13 @@ const htmlContent = `
             <div class="slider-viewport" id="slider-viewport">
                 <div class="slider-track" id="slider-track">
                     <div class="slide-page">
-                        <div class="grid-container" id="news-grid">
-                            <div class="data-card news-card"><span>載入中...</span></div>
-                            <div class="data-card news-card"><span>載入中...</span></div>
-                            <div class="data-card news-card"><span>載入中...</span></div>
-                            <div class="data-card news-card"><span>載入中...</span></div>
+                        <div id="news-container-wrapper">
+                            <div class="news-grid-page" id="initial-news-loader">
+                                <div class="data-card news-card"><span>載入中...</span></div>
+                                <div class="data-card news-card"><span>載入中...</span></div>
+                                <div class="data-card news-card"><span>載入中...</span></div>
+                                <div class="data-card news-card"><span>載入中...</span></div>
+                            </div>
                         </div>
                     </div>
                     <div class="slide-page">
@@ -333,7 +348,7 @@ const htmlContent = `
             }
         });
 
-        // --- 時鐘與夜間模式 ---
+        // --- 時鐘與夜間模式 (還原為簡約寫法) ---
         let targetAlarmTime = null, isAlarmRinging = false, manualNightMode = false;
         function updateClock() {
             const now = new Date();
@@ -418,7 +433,7 @@ const htmlContent = `
         }
 
         // ==========================================
-        // 📰 新聞 API
+        // 📰 新聞 API (平滑流暢動畫版)
         // ==========================================
         let newsList = [], currentNewsPage = 0, newsInterval;
         const savedLang = localStorage.getItem('smartDisplay_newsLang') || 'zh';
@@ -430,27 +445,55 @@ const htmlContent = `
                 if (data.status === 'ok' && data.items.length > 0) {
                     newsList = data.items; currentNewsPage = 0; showNextNews();
                     if(newsInterval) clearInterval(newsInterval);
-                    newsInterval = setInterval(showNextNews, 10000); 
+                    newsInterval = setInterval(showNextNews, 10000); // 10秒自動換頁
                 }
             } catch (err) {}
         }
+        
         function showNextNews() {
             if(newsList.length === 0) return;
-            const grid = document.getElementById('news-grid');
-            grid.style.opacity = 0; 
-            setTimeout(() => {
-                grid.innerHTML = '';
-                for(let i=0; i<4; i++) {
-                    let index = (currentNewsPage * 4 + i) % newsList.length;
-                    grid.innerHTML += \`<div class="data-card news-card"><span>\${newsList[index]}</span></div>\`;
+            
+            const wrapper = document.getElementById('news-container-wrapper');
+            const oldGrid = wrapper.querySelector('.news-grid-page');
+            
+            // 建立新的網格頁面，並設定在「準備滑入」的狀態
+            const newGrid = document.createElement('div');
+            newGrid.className = 'news-grid-page page-enter';
+            
+            // 填入四則新聞資料
+            for(let i=0; i<4; i++) {
+                let index = (currentNewsPage * 4 + i) % newsList.length;
+                newGrid.innerHTML += \`<div class="data-card news-card"><span>\${newsList[index]}</span></div>\`;
+            }
+            wrapper.appendChild(newGrid);
+            
+            // 強制瀏覽器重繪 (Reflow)，確保動畫生效
+            void newGrid.offsetWidth;
+            
+            // 新網格啟動淡入上浮
+            newGrid.classList.remove('page-enter');
+            newGrid.classList.add('page-enter-active');
+            
+            // 舊網格啟動淡出上滑
+            if(oldGrid) {
+                // 如果是初始載入狀態則不用加 exit 動畫
+                if (oldGrid.id !== 'initial-news-loader') {
+                    oldGrid.classList.remove('page-enter-active');
                 }
-                grid.style.opacity = 1; currentNewsPage++;
-            }, 500);
+                oldGrid.classList.add('page-exit-active');
+                
+                // 動畫結束後(0.8秒)將舊節點移除
+                setTimeout(() => { if (oldGrid.parentNode) oldGrid.remove(); }, 800);
+            }
+            
+            currentNewsPage++;
         }
+
         langSelect.addEventListener('change', (e) => {
             const lang = e.target.value; localStorage.setItem('smartDisplay_newsLang', lang); 
-            document.getElementById('news-grid').style.opacity = 0; setTimeout(() => fetchNews(lang), 500);
+            fetchNews(lang);
         });
+        
         fetchNews(savedLang); setInterval(() => fetchNews(langSelect.value), 60 * 60 * 1000);
 
         // ==========================================
