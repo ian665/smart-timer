@@ -3,109 +3,121 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-    <title>智慧儀表板 Pro (真實API版)</title>
+    <title>智慧儀表板 Pro</title>
     <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@300;400;500;700&family=Roboto:wght@100;300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Rounded:opsz,wght,FILL,GRAD@24,300,1,0" rel="stylesheet" />
     <style>
-        /* 樣式保持與上一版相同的橫式高質感毛玻璃設計 */
         :root {
             --glass-bg: rgba(20, 20, 20, 0.45);
             --glass-border: rgba(255, 255, 255, 0.15);
-            --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);
-            --theme-blue: #4fc3f7;
+            --theme-blue: #00d2ff;
+            --accent-green: #2ed573;
+            --accent-red: #ff4757;
         }
         body {
             margin: 0; padding: 0; width: 100vw; height: 100vh;
-            background: linear-gradient(135deg, #141E30, #243B55);
+            background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
             background-size: cover; background-position: center;
             color: #ffffff; font-family: 'Noto Sans TC', sans-serif;
-            overflow: hidden; box-sizing: border-box; padding: 3vh 3vw;
+            overflow: hidden; box-sizing: border-box; padding: 2vh 2vw;
         }
+        
+        .material-symbols-rounded { vertical-align: middle; font-size: inherit; }
+
         .dashboard {
-            display: grid; grid-template-columns: 1fr 1.2fr; grid-template-rows: 1fr 1fr;
+            display: grid; grid-template-columns: 1fr 1.3fr; 
+            /* 調整這裡的比例：上面天氣縮小(0.75fr)，下面新聞放大(1.25fr) */
+            grid-template-rows: 0.75fr 1.25fr; 
             gap: 20px; width: 100%; height: 100%;
         }
         .glass-panel {
-            background: var(--glass-bg); backdrop-filter: blur(16px); border: 1px solid var(--glass-border);
-            border-radius: 24px; box-shadow: var(--glass-shadow); padding: 20px;
-            display: flex; flex-direction: column; position: relative;
+            background: var(--glass-bg); backdrop-filter: blur(25px); border: 1px solid var(--glass-border);
+            border-radius: 28px; box-shadow: 0 10px 40px rgba(0,0,0,0.4);
+            display: flex; flex-direction: column; padding: 25px; overflow: hidden;
         }
         
-        /* 左側時鐘區 */
-        .panel-left { grid-column: 1 / 2; grid-row: 1 / 3; justify-content: center; align-items: center; text-align: center; }
-        #clock { font-family: 'Roboto'; font-weight: 300; font-size: 16vw; line-height: 1; margin-bottom: 10px; text-shadow: 0 4px 15px rgba(0,0,0,0.5); }
-        #date-display { font-size: 3vw; font-weight: 300; color: #ccc; letter-spacing: 2px; margin-bottom: 20px; }
+        /* 左側面版 */
+        .panel-left { grid-column: 1 / 2; grid-row: 1 / 3; position: relative; }
+        .clock-wrapper { margin-top: 4vh; text-align: center; } 
+        #clock { font-family: 'Roboto'; font-weight: 100; font-size: 15vw; line-height: 0.9; margin-bottom: 5px; letter-spacing: -5px; }
+        #date-display { font-size: 2.5vw; font-weight: 300; color: #bbb; letter-spacing: 5px; text-transform: uppercase; }
+
+        /* 狀態列 */
+        .status-sidebar {
+            position: absolute; left: 25px; top: 52%; transform: translateY(-50%);
+            display: flex; flex-direction: column; gap: 18px;
+            font-size: 1.3vw; font-weight: 300; color: rgba(255,255,255,0.8);
+            text-align: left;
+        }
+        .status-item { display: flex; align-items: center; gap: 12px; }
+        .status-dot { width: 8px; height: 8px; border-radius: 50%; background: #555; }
+        .active .status-dot { background: var(--accent-green); box-shadow: 0 0 10px var(--accent-green); }
+
+        .controls { 
+            position: absolute; bottom: 25px; left: 25px; right: 25px;
+            display: flex; gap: 10px; justify-content: flex-start; align-items: center;
+        }
+        button, .upload-btn { 
+            background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); 
+            color: #fff; padding: 8px 15px; border-radius: 12px; font-size: 1.1vw; 
+            cursor: pointer; transition: 0.3s; 
+            display: flex; align-items: center; gap: 5px;
+        }
+        button:hover, .upload-btn:hover { background: rgba(255,255,255,0.2); }
+
+        /* 右上天氣區 (高度壓縮優化) */
+        .panel-right-top { grid-column: 2 / 3; grid-row: 1 / 2; padding: 20px 25px; }
+        .weather-main { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+        #current-temp { font-size: 5vw; font-family: 'Roboto'; font-weight: 300; line-height: 1; }
+        #current-icon { font-size: 4.5vw; color: var(--theme-blue); }
         
-        .controls { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: auto; width: 100%; }
-        button, .upload-btn { background: rgba(255, 255, 255, 0.1); border: 1px solid var(--glass-border); color: white; padding: 10px 15px; border-radius: 12px; font-size: 1.5vw; cursor: pointer; transition: 0.2s; }
-        button:hover, .upload-btn:hover { background: rgba(255, 255, 255, 0.2); }
-        input[type="time"] { background: rgba(0,0,0,0.5); color: white; border: 1px solid var(--glass-border); border-radius: 12px; padding: 8px; outline: none; color-scheme: dark; }
+        .weather-info-box { 
+            display: grid; grid-template-columns: auto auto; gap: 8px 25px; 
+            font-size: 1.1vw; color: #ccc; 
+        }
+        .weather-info-box .info-line { display: flex; align-items: center; gap: 6px; }
 
-        /* 右上天氣區 */
-        .panel-right-top { grid-column: 2 / 3; grid-row: 1 / 2; justify-content: space-between; }
-        .weather-header { display: flex; justify-content: space-between; align-items: flex-end; border-bottom: 1px solid rgba(255,255,255,0.1); padding-bottom: 10px; margin-bottom: 10px; }
-        .current-temp-block { display: flex; align-items: center; gap: 15px; }
-        #current-temp { font-family: 'Roboto'; font-size: 5vw; font-weight: 500; line-height: 1; }
-        #current-condition { font-size: 4vw; line-height: 1; }
-        .weather-details { font-size: 1.5vw; color: #ddd; text-align: right; }
-        .forecast-grid { display: flex; justify-content: space-between; gap: 5px; flex: 1; }
-        .forecast-item { display: flex; flex-direction: column; align-items: center; justify-content: center; background: rgba(0,0,0,0.2); border-radius: 12px; flex: 1; padding: 5px 0; }
-        .forecast-item .day { font-size: 1.2vw; color: #aaa; }
-        .forecast-item .icon { font-size: 2vw; margin: 4px 0; }
-        .forecast-item .temp { font-family: 'Roboto'; font-size: 1.3vw; }
+        .forecast-container { display: flex; justify-content: space-between; gap: 8px; flex: 1; }
+        .forecast-card { 
+            flex: 1; background: rgba(255,255,255,0.05); border-radius: 15px; 
+            padding: 8px 5px; display: flex; flex-direction: column; align-items: center; justify-content: space-around;
+        }
+        .forecast-card .day { font-size: 1vw; color: #888; }
+        .forecast-card .icon { font-size: 2.2vw; margin: 2px 0; color: #ddd; }
+        .forecast-card .temp { font-family: 'Roboto'; font-size: 1.2vw; font-weight: 500; }
 
-        /* 右下新聞區 */
-        .panel-right-bottom { grid-column: 2 / 3; grid-row: 2 / 3; justify-content: flex-start; overflow: hidden; }
-        .news-header { font-size: 1.5vw; color: var(--theme-blue); font-weight: 500; margin-bottom: 15px; display: flex; align-items: center; gap: 8px; flex-shrink: 0; }
-        .news-carousel-container { flex: 1; display: flex; align-items: center; position: relative; overflow: hidden; }
+        /* 右下新聞區 (高度增加優化) */
+        .panel-right-bottom { grid-column: 2 / 3; grid-row: 2 / 3; display: flex; flex-direction: column;}
+        .news-header-area { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; flex-shrink: 0; }
+        .news-title { font-size: 1.4vw; color: var(--theme-blue); font-weight: 600; letter-spacing: 2px; display: flex; align-items: center; gap: 8px; }
         
-        /* 單則新聞的樣式 */
-        .news-item {
-            position: absolute;
-            width: 100%;
-            display: flex;
-            align-items: center;
-            gap: 1.5vw;
-            text-decoration: none;
-            color: white;
-            transition: transform 0.6s cubic-bezier(0.25, 1, 0.5, 1), opacity 0.6s ease;
+        .news-tabs { display: flex; gap: 10px; }
+        .news-tab { 
+            background: rgba(255,255,255,0.1); border: 1px solid transparent; 
+            color: #ccc; padding: 6px 16px; border-radius: 20px; 
+            font-size: 1vw; cursor: pointer; transition: 0.3s;
         }
-        .news-item img {
-            width: 8vw;
-            height: 5.5vw;
-            min-width: 80px;
-            min-height: 55px;
-            object-fit: cover;
-            border-radius: 10px;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.4);
-            flex-shrink: 0;
-        }
-        .news-item-text {
-            font-size: 2vw;
-            font-weight: 300;
-            line-height: 1.4;
-            display: -webkit-box;
-            -webkit-line-clamp: 2; /* 最多顯示兩行文字 */
-            -webkit-box-orient: vertical;
-            overflow: hidden;
-        }
-        .news-item:hover .news-item-text {
-            color: var(--theme-blue);
-            text-decoration: underline;
-        }
+        .news-tab:hover { background: rgba(255,255,255,0.2); }
+        .news-tab.active { background: var(--theme-blue); color: #000; font-weight: 500; }
 
-        /* 滾動動畫 class */
-        .slide-in { transform: translateY(100%); opacity: 0; animation: slideInAnim 0.8s forwards; }
-        .slide-out { animation: slideOutAnim 0.8s forwards; }
-        @keyframes slideInAnim { to { transform: translateY(0); opacity: 1; } }
-        @keyframes slideOutAnim { to { transform: translateY(-100%); opacity: 0; } }
+        .news-grid { display: grid; grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; gap: 15px; flex: 1; min-height: 0; }
+        .news-card { 
+            display: flex; flex-direction: column; justify-content: flex-start; background: rgba(0,0,0,0.2); 
+            border-radius: 15px; padding: 18px; text-decoration: none; color: white; transition: 0.3s;
+            border: 1px solid transparent; overflow: hidden;
+        }
+        .news-card:hover { background: rgba(255,255,255,0.08); border-color: var(--theme-blue); }
+        /* 放大的新聞高度，讓文字顯示增加到 4 行 */
+        .news-card-text { font-size: 1.25vw; line-height: 1.6; font-weight: 300; display: -webkit-box; -webkit-line-clamp: 4; -webkit-box-orient: vertical; overflow: hidden; text-overflow: ellipsis; }
+        .news-source { font-size: 0.9vw; color: #888; margin-top: auto; padding-top: 10px; display: flex; align-items: center; gap: 5px; }
+
         /* 覆蓋層 */
-        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 999; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); text-align: center; }
-        @keyframes pulseRed { 0% { background: rgba(255,0,0,0.8); } 50% { background: rgba(100,0,0,0.9); } 100% { background: rgba(255,0,0,0.8); } }
-        .eq-active { animation: pulseRed 1s infinite !important; }
-        @keyframes pulseBlue { 0% { background: rgba(0,102,255,0.8); } 50% { background: rgba(0,40,100,0.9); } 100% { background: rgba(0,102,255,0.8); } }
-        .alarm-active { animation: pulseBlue 1.5s infinite !important; }
-        .overlay h1 { font-size: 8vw; margin: 0 0 20px; }
-        .overlay p { font-size: 3vw; margin-bottom: 40px; line-height: 1.4; padding: 0 20px; }
+        .overlay { display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100vh; z-index: 999; flex-direction: column; align-items: center; justify-content: center; backdrop-filter: blur(30px); text-align: center; }
+        .eq-active { animation: pulseBgRed 1s infinite !important; }
+        @keyframes pulseBgRed { 0% { background: rgba(255,0,0,0.7); } 50% { background: rgba(80,0,0,0.8); } 100% { background: rgba(255,0,0,0.7); } }
+        
+        .overlay h1 { font-size: 8vw; margin: 0 0 20px; display: flex; align-items: center; gap: 20px; justify-content: center; }
+        .overlay p { font-size: 3vw; margin-bottom: 40px; }
         .overlay button { font-size: 2vw; padding: 15px 40px; background: white; color: black; border-radius: 50px; cursor: pointer; border: none; font-weight: bold; }
     </style>
 </head>
@@ -113,269 +125,69 @@
 
     <div class="dashboard">
         <div class="glass-panel panel-left">
-            <div id="clock">00:00</div>
-            <div id="date-display">載入中...</div>
-            
-            <div style="font-size: 1.5vw; color: #aaa; margin-bottom: 20px; display: flex; flex-direction: column; gap: 5px;">
-                <span id="wakeStatus">恆亮未啟用</span>
-                <span id="eqStatus">地震監控中...</span>
-                <span id="alarmStatus" style="color: #2ed573; display: none;">⏰ 鬧鐘已設定</span>
-                <span id="location">定位中...</span>
+            <div class="clock-wrapper">
+                <div id="clock">00:00</div>
+                <div id="date-display">...</div>
+            </div>
+
+            <div class="status-sidebar">
+                <div class="status-item" id="wakeStat">
+                    <div class="status-dot"></div>
+                    <span class="material-symbols-rounded" style="font-size: 1.5vw;">lightbulb</span>
+                    <span id="wakeStatus">螢幕恆亮：未啟用</span>
+                </div>
+                <div class="status-item active" id="eqStat">
+                    <div class="status-dot"></div>
+                    <span class="material-symbols-rounded" style="font-size: 1.5vw;">sensors</span>
+                    <span id="eqStatus">地震防護：監控中</span>
+                </div>
+                <div class="status-item">
+                    <span class="material-symbols-rounded" style="color:var(--theme-blue); font-size:1.8vw; margin-left: -2px;">location_on</span> 
+                    <span id="location">定位中...</span>
+                </div>
             </div>
 
             <div class="controls">
-                <button id="wakeBtn">啟用恆亮</button>
-                <label class="upload-btn">換背景<input type="file" id="bgInput" accept="image/*" style="display: none;"></label>
-                <button id="testEqBtn" style="color: #aaa; border-color: #555;">假警報測試</button>
-                
-                <div style="display: flex; gap: 5px; width: 100%; justify-content: center; margin-top: 10px;">
-                    <input type="time" id="alarmTimeInput">
-                    <button id="setAlarmBtn">設鬧鐘</button>
-                    <button id="cancelAlarmBtn" style="display:none; color: #ff4757;">取消</button>
-                </div>
+                <button id="wakeBtn"><span class="material-symbols-rounded">brightness_high</span> 啟用恆亮</button>
+                <label class="upload-btn"><span class="material-symbols-rounded">wallpaper</span> 換背景<input type="file" id="bgInput" accept="image/*" style="display: none;"></label>
             </div>
         </div>
 
         <div class="glass-panel panel-right-top">
-            <div class="weather-header">
-                <div class="current-temp-block">
-                    <span id="current-temp">--°</span>
+            <div class="weather-main">
+                <div style="display: flex; align-items: center; gap: 20px;">
+                    <span class="material-symbols-rounded" id="current-icon">clear_day</span>
+                    <div id="current-temp">--°</div>
                 </div>
-                <div class="weather-details">
-                    <div>💧 濕度 <span id="current-humidity">--</span>%</div>
-                    <div>☔ 降雨 <span id="current-rain">--</span>%</div>
+                <div class="weather-info-box">
+                    <div class="info-line"><span class="material-symbols-rounded" style="font-size: 1.4vw;">device_thermostat</span> 體感 <span id="current-feels-like">--</span>°</div>
+                    <div class="info-line"><span class="material-symbols-rounded" style="font-size: 1.4vw;">air</span> 風速 <span id="current-wind">--</span> km/h</div>
+                    <div class="info-line"><span class="material-symbols-rounded" style="font-size: 1.4vw;">umbrella</span> 降雨 <span id="current-rain">--</span>%</div>
+                    <div class="info-line"><span class="material-symbols-rounded" style="font-size: 1.4vw;">water_drop</span> 濕度 <span id="current-humidity">--</span>%</div>
                 </div>
             </div>
-            <div class="forecast-grid" id="forecast-grid"></div>
+            <div class="forecast-container" id="forecast-grid"></div>
         </div>
 
         <div class="glass-panel panel-right-bottom">
-            <div class="news-header">公視即時新聞</div>
-            <div class="news-carousel-container">
+            <div class="news-header-area">
+                <div class="news-title"><span class="material-symbols-rounded">newspaper</span> 即時焦點</div>
+                <div class="news-tabs">
+                    <button class="news-tab active" data-category="international">國際新聞</button>
+                    <button class="news-tab" data-category="japan">日本新聞</button>
+                    <button class="news-tab" data-category="taiwan">台灣新聞</button>
+                </div>
             </div>
+            <div class="news-grid" id="news-grid"></div>
         </div>
     </div>
 
     <div id="eq-overlay" class="overlay">
-        <h1>氣象署地震速報</h1>
-        <p id="eq-info-text">連線中...</p>
+        <h1><span class="material-symbols-rounded" style="font-size: 8vw;">warning</span> 氣象署地震速報</h1>
+        <p id="eq-info-text"></p>
         <button id="dismissEqBtn">解除警報</button>
     </div>
-    <div id="alarm-overlay" class="overlay">
-        <h1>時間到！</h1>
-        <button id="dismissAlarmBtn">關閉鬧鐘</button>
-    </div>
 
-    <script>
-        // ==========================================
-        // 🔑 核心設定區：請填入你的氣象署 API 授權碼
-        // ==========================================
-        const CWA_API_KEY = 'CWA-847DA1DF-CF0B-4E3D-8C8F-5DE7DB24EDD8'; 
-
-        let audioCtx;
-
-        // --- 1. 時鐘與日期 ---
-        let targetAlarmTime = null;
-        let isAlarmRinging = false;
-        function updateClock() {
-            const now = new Date();
-            const hh = String(now.getHours()).padStart(2, '0');
-            const mm = String(now.getMinutes()).padStart(2, '0');
-            const ss = String(now.getSeconds()).padStart(2, '0');
-            document.getElementById('clock').textContent = \`\${hh}:\${mm}\`;
-            document.getElementById('date-display').textContent = now.toLocaleDateString('zh-TW', { month: 'long', day: 'numeric', weekday: 'long' });
-            if (targetAlarmTime === \`\${hh}:\${mm}\` && ss === '00' && !isAlarmRinging) triggerAlarm();
-        }
-        setInterval(updateClock, 1000); updateClock();
-
-        const setAlarmBtn = document.getElementById('setAlarmBtn');
-        const cancelAlarmBtn = document.getElementById('cancelAlarmBtn');
-        const alarmTimeInput = document.getElementById('alarmTimeInput');
-        let alarmSoundInterval;
-        setAlarmBtn.addEventListener('click', () => {
-            if (alarmTimeInput.value) {
-                targetAlarmTime = alarmTimeInput.value;
-                document.getElementById('alarmStatus').style.display = 'block';
-                document.getElementById('alarmStatus').textContent = \`⏰ 鬧鐘：\${targetAlarmTime}\`;
-                setAlarmBtn.style.display = 'none'; cancelAlarmBtn.style.display = 'block'; alarmTimeInput.style.display = 'none';
-            }
-        });
-        cancelAlarmBtn.addEventListener('click', () => {
-            targetAlarmTime = null;
-            document.getElementById('alarmStatus').style.display = 'none';
-            setAlarmBtn.style.display = 'block'; cancelAlarmBtn.style.display = 'none'; alarmTimeInput.style.display = 'block'; alarmTimeInput.value = '';
-        });
-
-// --- 2. 新聞輪播 (公視 RSS) ---
-        let newsList = [], currentNewsIndex = 0, newsInterval;
-        async function fetchNews() {
-            try {
-                const url = 'https://api.rss2json.com/v1/api.json?rss_url=' + encodeURIComponent('https://news.pts.org.tw/xml/newsfeed.xml');
-                const res = await fetch(url);
-                const data = await res.json();
-                if (data.status === 'ok' && data.items.length > 0) {
-                    newsList = data.items.map(i => i.title);
-                    if(!newsInterval) { // 初次載入
-                        showNextNews();
-                        newsInterval = setInterval(showNextNews, 8000);
-                    }
-                }
-            } catch (err) {}
-        }
-        function showNextNews() {
-            const el = document.getElementById('news-text');
-            el.style.opacity = 0;
-            setTimeout(() => {
-                el.textContent = newsList[currentNewsIndex];
-                el.style.opacity = 1;
-                currentNewsIndex = (currentNewsIndex + 1) % newsList.length;
-            }, 800);
-        }
-        fetchNews(); setInterval(fetchNews, 60 * 60 * 1000);
-        // --- 3. 天氣與定位 (Open-Meteo) ---
-        function getWeatherEmoji(code) {
-            if (code === 0) return '☀️'; if (code <= 3) return '⛅'; if (code >= 45 && code <= 48) return '🌫️';
-            if (code >= 51 && code <= 67) return '🌧️'; if (code >= 71 && code <= 77) return '❄️'; if (code >= 95) return '⛈️'; return '☁️';
-        }
-        async function fetchWeather(lat, lon) {
-            try {
-                const url = \`https://api.open-meteo.com/v1/forecast?latitude=\${lat}&longitude=\${lon}&current=temperature_2m,relative_humidity_2m,weather_code&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Asia%2FTaipei\`;
-                const res = await fetch(url); const data = await res.json();
-                document.getElementById('current-temp').textContent = Math.round(data.current.temperature_2m) + '°';
-                document.getElementById('current-condition').textContent = getWeatherEmoji(data.current.weather_code);
-                document.getElementById('current-humidity').textContent = data.current.relative_humidity_2m;
-                document.getElementById('current-rain').textContent = data.daily.precipitation_probability_max[0];
-                const grid = document.getElementById('forecast-grid'); grid.innerHTML = '';
-                const days = ['日', '一', '二', '三', '四', '五', '六'];
-                for (let i = 1; i <= 5; i++) {
-                    const dateObj = new Date(data.daily.time[i]);
-                    const el = document.createElement('div'); el.className = 'forecast-item';
-                    el.innerHTML = \`<div class="day">\${days[dateObj.getDay()]}</div><div class="icon">\${getWeatherEmoji(data.daily.weather_code[i])}</div><div class="temp">\${Math.round(data.daily.temperature_2m_min[i])}°</div>\`;
-                    grid.appendChild(el);
-                }
-            } catch (err) {}
-        }
-        function initLocation() {
-            if ("geolocation" in navigator) {
-                navigator.geolocation.getCurrentPosition(
-                    async (pos) => {
-                        const lat = pos.coords.latitude, lon = pos.coords.longitude;
-                        fetchWeather(lat, lon);
-                        try {
-                            const res = await fetch(\`https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=\${lat}&longitude=\${lon}&localityLanguage=zh\`);
-                            const data = await res.json();
-                            document.getElementById('location').textContent = \`📍 \${data.city || data.locality}\`;
-                        } catch {}
-                    },
-                    () => { document.getElementById('location').textContent = '📍 彰化市(預設)'; fetchWeather(24.08, 120.54); }
-                );
-            } else { fetchWeather(24.08, 120.54); }
-        }
-        initLocation(); setInterval(initLocation, 30 * 60 * 1000);
-
-        // --- 4. 系統功能與音效 ---
-        document.getElementById('bgInput').addEventListener('change', e => {
-            if (e.target.files[0]) {
-                const reader = new FileReader();
-                reader.onload = ev => { document.body.style.backgroundImage = \`url(\${ev.target.result})\`; };
-                reader.readAsDataURL(e.target.files[0]);
-            }
-        });
-
-        document.getElementById('wakeBtn').addEventListener('click', async () => {
-            try { await navigator.wakeLock.request('screen'); document.getElementById('wakeStatus').innerHTML = '<span style="color:#2ed573;">☀️ 恆亮運作中</span>'; document.getElementById('wakeBtn').style.display = 'none'; } catch (err) {}
-        });
-
-        function playTone(type, freq, dur) {
-            if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-            const osc = audioCtx.createOscillator(), gain = audioCtx.createGain();
-            osc.type = type; osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
-            gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-            osc.connect(gain); gain.connect(audioCtx.destination);
-            osc.start(); osc.stop(audioCtx.currentTime + dur);
-        }
-
-        // --- 5. 真實 CWA 地震警報系統 ---
-        let lastEqTime = null;
-        let eqBeepInterval;
-
-        async function checkRealEarthquake() {
-            if (CWA_API_KEY === 'YOUR_CWA_API_KEY_HERE') {
-                document.getElementById('eqStatus').innerHTML = '<span style="color:#ff4757;">⚠️ 未輸入氣象署 API 金鑰</span>';
-                return;
-            }
-
-            try {
-                // 呼叫氣象署「顯著有感地震報告」API
-                const url = \`https://opendata.cwa.gov.tw/api/v1/rest/datastore/E-A0101-001?Authorization=\${CWA_API_KEY}&limit=1&format=JSON\`;
-                const res = await fetch(url);
-                const data = await res.json();
-
-                if (data.success === 'true') {
-                    const latestEq = data.records.Earthquake[0];
-                    const eqTime = latestEq.EarthquakeInfo.OriginTime; // 例如 "2024-04-03 07:58:09"
-                    
-                    document.getElementById('eqStatus').innerHTML = '<span style="color:#2ed573;">📡 氣象署地震監控中</span>';
-
-                    // 網頁剛打開時，紀錄最新一筆的時間當基準，避免一開網頁就報警
-                    if (!lastEqTime) {
-                        lastEqTime = eqTime;
-                        return;
-                    }
-
-                    // 如果抓到的地震時間跟上次紀錄的「不一樣」，代表有新地震發生！
-                    if (eqTime !== lastEqTime) {
-                        lastEqTime = eqTime; // 更新紀錄
-                        
-                        const reportContent = latestEq.ReportContent;
-                        const magnitude = latestEq.EarthquakeInfo.EarthquakeMagnitude.MagnitudeValue;
-                        const depth = latestEq.EarthquakeInfo.FocalDepth;
-
-                        // 組合警報畫面文字
-                        const infoHtml = \`芮氏規模：<span style="color:#ff4757; font-weight:bold;">\${magnitude}</span><br>深度：\${depth} 公里<br><br><span style="font-size: 2.2vw;">\${reportContent}</span>\`;
-                        
-                        triggerEqAlarm(infoHtml);
-                    }
-                }
-            } catch (err) {
-                console.error("地震 API 抓取失敗", err);
-            }
-        }
-
-        // 觸發地震警報畫面與聲音
-        function triggerEqAlarm(infoHtml) {
-            document.body.classList.add('eq-active'); 
-            document.getElementById('eq-overlay').style.display = 'flex';
-            document.getElementById('eq-info-text').innerHTML = infoHtml;
-            
-            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-            playTone('square', 800, 0.3); 
-            eqBeepInterval = setInterval(() => playTone('square', 800, 0.3), 800);
-        }
-
-        // 啟動地震監控，每 60 秒檢查一次氣象署資料
-        setInterval(checkRealEarthquake, 60000);
-        setTimeout(checkRealEarthquake, 2000); // 載入後延遲 2 秒先檢查一次
-
-        // 手動測試按鈕與解除按鈕邏輯
-        document.getElementById('testEqBtn').addEventListener('click', () => {
-            triggerEqAlarm('【模擬測試】<br>芮氏規模：<span style="color:#ff4757; font-weight:bold;">7.2</span><br>深度：15.5 公里<br><br><span style="font-size: 2vw;">花蓮縣政府南南東方25.0公里發生有感地震，請就近掩蔽。</span>');
-        });
-        document.getElementById('dismissEqBtn').addEventListener('click', () => {
-            document.body.classList.remove('eq-active'); document.getElementById('eq-overlay').style.display = 'none';
-            clearInterval(eqBeepInterval);
-        });
-
-        // 鬧鐘觸發與解除
-        function triggerAlarm() {
-            isAlarmRinging = true; document.body.classList.add('alarm-active'); document.getElementById('alarm-overlay').style.display = 'flex';
-            if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
-            playTone('triangle', 600, 0.4); alarmSoundInterval = setInterval(() => playTone('triangle', 600, 0.4), 1000);
-        }
-        document.getElementById('dismissAlarmBtn').addEventListener('click', () => {
-            isAlarmRinging = false; document.body.classList.remove('alarm-active'); document.getElementById('alarm-overlay').style.display = 'none';
-            clearInterval(alarmSoundInterval); cancelAlarmBtn.click();
-        });
-    </script>
+    <script src="main.js"></script>
 </body>
 </html>
