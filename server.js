@@ -2,6 +2,7 @@ const express = require('express');
 const path = require('path');
 const app = express();
 const port = process.env.PORT || 3000;
+const host = '0.0.0.0';
 
 // ==========================================
 // 🚀 伺服器後端 API：直接抓取 Google News
@@ -88,6 +89,6 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'index.html'));
 });
 
-app.listen(port, () => {
+app.listen(port, host, () => {
     console.log(`伺服器已啟動！請在瀏覽器打開 http://localhost:${port}`);
 });
