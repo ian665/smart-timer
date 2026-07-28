@@ -1,7 +1,8 @@
 // ==========================================
 // 🔑 核心設定區：請填入你的氣象署 API 授權碼
 // ==========================================
-const CWA_API_KEY = 'CWA-847DA1DF-CF0B-4E3D-8C8F-5DE7DB24EDD8'; 
+// 舊版前端已停用；授權碼必須由 server.js 的 CWA_API_KEY 環境變數提供。
+const CWA_API_KEY = '';
 
 let audioCtx;
 

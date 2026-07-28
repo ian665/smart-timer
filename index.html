@@ -75,6 +75,10 @@
             position: fixed; inset: 0; z-index: 0; pointer-events: none; overflow: hidden;
             opacity: 0; transition: opacity 1.8s ease, filter 1.8s ease;
         }
+        body.page-hidden #weather-ambience *,
+        body.page-hidden #hourly-overlay * {
+            animation-play-state: paused !important;
+        }
         body.weather-rain #weather-ambience,
         body.weather-cloudy #weather-ambience,
         body.weather-sunny #weather-ambience,
@@ -283,6 +287,24 @@
 
         .auto-hide { transition: opacity 0.8s ease-in-out; opacity: 1; }
         body.idle .auto-hide { opacity: 0; pointer-events: none; }
+        body.low-performance *,
+        body.low-performance *::before,
+        body.low-performance *::after {
+            animation-duration: 0.001ms !important;
+            animation-iteration-count: 1 !important;
+            transition-duration: 0.001ms !important;
+        }
+        body.low-performance #weather-ambience,
+        body.low-performance #rain-canvas {
+            display: none !important;
+        }
+        .data-state {
+            font-size: clamp(11px, 0.78vw, 13px);
+            color: var(--text-muted);
+            margin-top: 5px;
+        }
+        .data-state.warning { color: var(--station-amber); }
+        .data-state.error { color: var(--station-red); }
         
         /* 左側：控制列 */
         .controls { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin-top: auto; width: 100%; position: relative; z-index: 910; }
@@ -1414,7 +1436,7 @@
             
             <div class="status-list">
                 <div id="wakeStatus"><i class="fa-regular fa-lightbulb"></i> 恆亮未啟用</div>
-                <div id="eqStatus"><i class="fa-solid fa-tower-broadcast"></i> 地震監控中...</div>
+                <div id="eqStatus"><i class="fa-solid fa-file-waveform"></i> 最新地震報告載入中...</div>
                 <div id="alarmStatus" style="color: #4caf50; display: none;"><i class="fa-regular fa-bell"></i> 鬧鐘已設定</div>
                 <div id="location"><i class="fa-solid fa-location-crosshairs"></i> 定位中...</div>
             </div>
@@ -1422,6 +1444,7 @@
             <div class="controls auto-hide">
                 <button id="fullscreenBtn"><i class="fa-solid fa-expand"></i></button>
                 <button id="wakeBtn"><i class="fa-solid fa-bolt"></i></button>
+                <button id="performanceBtn" title="切換低效能模式"><i class="fa-solid fa-leaf"></i></button>
                 <label class="upload-btn"><i class="fa-regular fa-image"></i> 背景<input type="file" id="bgInput" accept="image/*" style="display: none;"></label>
                 
                 <div style="display: flex; gap: 5px; width: 100%; justify-content: center; margin-top: 10px;">
@@ -1443,6 +1466,7 @@
                     <div><i class="fa-solid fa-umbrella"></i> 降雨 <span id="current-rain">--</span>%</div>
                 </div>
             </div>
+            <div id="weatherDataState" class="data-state">天氣資料載入中</div>
             <div class="forecast-grid" id="forecast-grid"></div>
         </div>
 
@@ -1514,9 +1538,42 @@
     </div>
 
     <script>
-        const CWA_API_KEY = 'CWA-847DA1DF-CF0B-4E3D-8C8F-5DE7DB24EDD8'; 
         let audioCtx;
         let audioReady = false;
+
+        const performancePreference = localStorage.getItem('smartDisplay_lowPerformance');
+        let lowPerformanceMode = performancePreference === null
+            ? Boolean(
+                window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ||
+                (navigator.hardwareConcurrency && navigator.hardwareConcurrency <= 4) ||
+                (navigator.deviceMemory && navigator.deviceMemory <= 4)
+            )
+            : performancePreference === 'true';
+
+        function applyPerformanceMode() {
+            document.body.classList.toggle('low-performance', lowPerformanceMode);
+            const button = document.getElementById('performanceBtn');
+            button.innerHTML = lowPerformanceMode
+                ? '<i class="fa-solid fa-leaf"></i> 省電'
+                : '<i class="fa-solid fa-gauge-high"></i>';
+            button.title = lowPerformanceMode ? '低效能模式已啟用' : '標準顯示模式';
+        }
+
+        document.getElementById('performanceBtn').addEventListener('click', () => {
+            lowPerformanceMode = !lowPerformanceMode;
+            localStorage.setItem('smartDisplay_lowPerformance', String(lowPerformanceMode));
+            applyPerformanceMode();
+            if (lowPerformanceMode) pauseRainAnimation();
+            else if (document.body.classList.contains('weather-rain')) {
+                updateRainAnimation('rain', Number(document.body.dataset.rain12h || 50));
+            }
+        });
+        applyPerformanceMode();
+
+        function formatUpdatedAt(value) {
+            if (!value) return '更新時間未知';
+            return `更新於 ${new Date(value).toLocaleTimeString('zh-TW', { hour: '2-digit', minute: '2-digit' })}`;
+        }
 
         function prepareAudio() {
             if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
@@ -1529,6 +1586,7 @@
 
         // --- 防烙印 ---
         function applyPixelShift() {
+            if (lowPerformanceMode) return;
             document.documentElement.style.setProperty('--shift-x', (Math.floor(Math.random() * 9) - 4) + 'px');
             document.documentElement.style.setProperty('--shift-y', (Math.floor(Math.random() * 9) - 4) + 'px');
         }
@@ -1638,7 +1696,14 @@
         document.getElementById('bgInput').addEventListener('change', e => {
             if (e.target.files[0]) {
                 const reader = new FileReader();
-                reader.onload = ev => { document.body.style.backgroundImage = `url(${ev.target.result})`; try { localStorage.setItem('smartDisplay_bg', ev.target.result); } catch (err) {} };
+                reader.onload = ev => {
+                    document.body.style.backgroundImage = `url(${ev.target.result})`;
+                    try {
+                        localStorage.setItem('smartDisplay_bg', ev.target.result);
+                    } catch (err) {
+                        document.getElementById('wakeStatus').innerHTML = '<span style="color:#ff9f1c;"><i class="fa-solid fa-image"></i> 背景已套用，但圖片過大無法保存</span>';
+                    }
+                };
                 reader.readAsDataURL(e.target.files[0]);
             }
         });
@@ -1697,14 +1762,24 @@
                     newsList = data.items;
                     currentNewsPage = 0;
                     showNextNews();
+                    if (data.stale) showNewsNotice(data.message || `顯示舊資料・${formatUpdatedAt(data.updatedAt)}`);
                     if(newsInterval) clearInterval(newsInterval);
-                    newsInterval = setInterval(showNextNews, 10000); // 10秒自動換頁
+                    newsInterval = setInterval(showNextNews, lowPerformanceMode ? 30000 : 10000);
                     return;
                 }
-                showNewsMessage('新聞暫時無法取得');
+                showNewsMessage(data.message || '新聞暫時無法取得');
             } catch (err) {
                 showNewsMessage('網路連線不穩，新聞稍後再試');
             }
+        }
+
+        function showNewsNotice(message) {
+            const wrapper = document.getElementById('news-container-wrapper');
+            wrapper.querySelectorAll('.data-state').forEach(node => node.remove());
+            const notice = document.createElement('div');
+            notice.className = 'data-state warning';
+            notice.textContent = message;
+            wrapper.prepend(notice);
         }
 
         function showNewsMessage(message) {
@@ -1807,14 +1882,20 @@
                             </div>
                         `;
                     });
+                    if (data.stale) {
+                        const notice = document.createElement('div');
+                        notice.className = 'data-state warning';
+                        notice.textContent = data.message || `顯示舊資料・${formatUpdatedAt(data.updatedAt)}`;
+                        grid.prepend(notice);
+                    }
                     return;
                 }
-                showStockMessage('股市暫時無法取得');
+                showStockMessage(data.message || '股市暫時無法取得');
             } catch (err) {
-                showStockMessage('股市暫時無法取得');
+                showStockMessage('網路連線不穩，股市稍後再試');
             }
         }
-        fetchStocks(); setInterval(fetchStocks, 5 * 60 * 1000); // 每 5 分鐘更新股市
+        fetchStocks(); setInterval(fetchStocks, lowPerformanceMode ? 15 * 60 * 1000 : 5 * 60 * 1000);
 
         // --- 天氣與定位 ---
         function getIconHtml(code) {
@@ -1834,6 +1915,7 @@
         let rainAnimationFrame = null;
         let rainLastTime = 0;
         let rainStrength = 0.5;
+        const autoReloadMs = 12 * 60 * 60 * 1000;
 
         function resizeRainCanvas() {
             if (!rainCanvas || !rainCtx) return;
@@ -1852,7 +1934,8 @@
             if (!rainCanvas || !rainCtx) return;
             const width = window.innerWidth;
             const height = window.innerHeight;
-            const count = Math.round((width * height / 9000) * (0.45 + rainStrength * 1.35));
+            const density = lowPerformanceMode ? 0.2 : 1;
+            const count = Math.round((width * height / 9000) * (0.45 + rainStrength * 1.35) * density);
             rainDrops = Array.from({ length: count }, () => ({
                 x: Math.random() * width,
                 y: Math.random() * height,
@@ -1869,7 +1952,7 @@
         }
 
         function drawRain(timestamp = 0) {
-            if (!rainCanvas || !rainCtx || !document.body.classList.contains('weather-rain')) {
+            if (!rainCanvas || !rainCtx || document.hidden || !document.body.classList.contains('weather-rain')) {
                 rainAnimationFrame = null;
                 window.smartDisplayRainState = {
                     ...(window.smartDisplayRainState || {}),
@@ -1914,7 +1997,7 @@
             rainStrength = Math.min(1, Math.max(0.35, maxRain12h / 100));
             buildRainDrops();
 
-            if (mood === 'rain') {
+            if (mood === 'rain' && !document.hidden) {
                 if (!rainAnimationFrame) {
                     rainLastTime = performance.now();
                     rainAnimationFrame = requestAnimationFrame(drawRain);
@@ -1929,6 +2012,36 @@
                 };
             }
         }
+
+        function pauseRainAnimation() {
+            if (!rainCanvas || !rainCtx) return;
+            if (rainAnimationFrame) {
+                cancelAnimationFrame(rainAnimationFrame);
+                rainAnimationFrame = null;
+            }
+            rainCtx.clearRect(0, 0, window.innerWidth, window.innerHeight);
+            window.smartDisplayRainState = {
+                ...(window.smartDisplayRainState || {}),
+                running: false,
+                paused: document.hidden
+            };
+        }
+
+        document.addEventListener('visibilitychange', () => {
+            if (document.hidden) {
+                document.body.classList.add('page-hidden');
+                pauseRainAnimation();
+                return;
+            }
+            document.body.classList.remove('page-hidden');
+            if (document.body.classList.contains('weather-rain')) {
+                updateRainAnimation('rain', Number(document.body.dataset.rain12h || 50));
+            }
+        });
+
+        setTimeout(() => {
+            window.location.reload();
+        }, autoReloadMs);
 
         window.addEventListener('resize', resizeRainCanvas);
         resizeRainCanvas();
@@ -1993,32 +2106,55 @@
             return window.smartDisplayWeatherMood;
         }
 
+        function renderWeather(data, stale = false, updatedAt = Date.now()) {
+            const mood = updateWeatherMood(data);
+            document.getElementById('current-temp').textContent = Math.round(data.current.temperature_2m) + '°';
+            document.getElementById('current-condition').innerHTML = getIconHtml(data.current.weather_code);
+            document.getElementById('current-humidity').textContent = data.current.relative_humidity_2m;
+            document.getElementById('current-rain').textContent = Math.round(mood.maxRain12h);
+            const state = document.getElementById('weatherDataState');
+            state.className = `data-state${stale ? ' warning' : ''}`;
+            state.textContent = `${stale ? '離線備援資料・' : ''}${formatUpdatedAt(updatedAt)}`;
+            const grid = document.getElementById('forecast-grid'); grid.innerHTML = '';
+            const days = ['日', '一', '二', '三', '四', '五', '六'];
+            for (let i = 1; i <= 5; i++) {
+                const dateObj = new Date(data.daily.time[i]);
+                const dailyHumidity = data.hourly.relative_humidity_2m[i * 24 + 12] || '--';
+                const maxT = Math.round(data.daily.temperature_2m_max[i]);
+                const minT = Math.round(data.daily.temperature_2m_min[i]);
+                const rain = data.daily.precipitation_probability_max[i];
+                grid.innerHTML += `
+                    <div class="forecast-item">
+                        <div class="day">${days[dateObj.getDay()]}</div>
+                        <div class="icon">${getIconHtml(data.daily.weather_code[i])}</div>
+                        <div class="temp">${minT}°-${maxT}°</div>
+                        <div class="details"><span><i class="fa-solid fa-droplet"></i> ${dailyHumidity}%</span><span><i class="fa-solid fa-umbrella"></i> ${rain}%</span></div>
+                    </div>`;
+            }
+        }
+
         async function fetchWeather(lat, lon) {
+            const state = document.getElementById('weatherDataState');
             try {
                 const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,weather_code,cloud_cover&daily=weather_code,temperature_2m_max,temperature_2m_min,precipitation_probability_max&hourly=relative_humidity_2m,precipitation_probability,cloud_cover,weather_code,temperature_2m&forecast_days=7&timezone=auto`;
-                const res = await fetch(url); const data = await res.json();
-                const mood = updateWeatherMood(data);
-                document.getElementById('current-temp').textContent = Math.round(data.current.temperature_2m) + '°';
-                document.getElementById('current-condition').innerHTML = getIconHtml(data.current.weather_code);
-                document.getElementById('current-humidity').textContent = data.current.relative_humidity_2m;
-                document.getElementById('current-rain').textContent = Math.round(mood.maxRain12h);
-                const grid = document.getElementById('forecast-grid'); grid.innerHTML = '';
-                const days = ['日', '一', '二', '三', '四', '五', '六'];
-                for (let i = 1; i <= 5; i++) {
-                    const dateObj = new Date(data.daily.time[i]);
-                    const dailyHumidity = data.hourly.relative_humidity_2m[i * 24 + 12] || '--';
-                    const maxT = Math.round(data.daily.temperature_2m_max[i]);
-                    const minT = Math.round(data.daily.temperature_2m_min[i]);
-                    const rain = data.daily.precipitation_probability_max[i];
-                    grid.innerHTML += `
-                        <div class="forecast-item">
-                            <div class="day">${days[dateObj.getDay()]}</div>
-                            <div class="icon">${getIconHtml(data.daily.weather_code[i])}</div>
-                            <div class="temp">${minT}°-${maxT}°</div>
-                            <div class="details"><span><i class="fa-solid fa-droplet"></i> ${dailyHumidity}%</span><span><i class="fa-solid fa-umbrella"></i> ${rain}%</span></div>
-                        </div>`;
-                }
-            } catch (err) {}
+                const res = await fetch(url);
+                if (!res.ok) throw new Error(`Weather request failed: ${res.status}`);
+                const data = await res.json();
+                if (!data.current || !data.daily || !data.hourly) throw new Error('Weather response incomplete');
+                const cached = { data, updatedAt: Date.now() };
+                try { localStorage.setItem('smartDisplay_weatherCache', JSON.stringify(cached)); } catch {}
+                renderWeather(data, false, cached.updatedAt);
+            } catch (err) {
+                try {
+                    const cached = JSON.parse(localStorage.getItem('smartDisplay_weatherCache') || 'null');
+                    if (cached?.data && Date.now() - cached.updatedAt <= 24 * 60 * 60 * 1000) {
+                        renderWeather(cached.data, true, cached.updatedAt);
+                        return;
+                    }
+                } catch {}
+                state.className = 'data-state error';
+                state.textContent = '天氣服務暫時無法連線，請稍後再試';
+            }
         }
         function initLocation() {
             if ("geolocation" in navigator) {
@@ -2034,10 +2170,16 @@
                 );
             } else { fetchWeather(24.08, 120.54); }
         }
-        initLocation(); setInterval(initLocation, 30 * 60 * 1000);
+        initLocation(); setInterval(initLocation, lowPerformanceMode ? 60 * 60 * 1000 : 30 * 60 * 1000);
 
         document.getElementById('wakeBtn').addEventListener('click', async () => {
-            try { await navigator.wakeLock.request('screen'); document.getElementById('wakeStatus').innerHTML = '<span style="color:#fbc02d;"><i class="fa-solid fa-lightbulb"></i> 恆亮中</span>'; document.getElementById('wakeBtn').style.display = 'none'; } catch (err) {}
+            try {
+                await navigator.wakeLock.request('screen');
+                document.getElementById('wakeStatus').innerHTML = '<span style="color:#fbc02d;"><i class="fa-solid fa-lightbulb"></i> 恆亮中</span>';
+                document.getElementById('wakeBtn').style.display = 'none';
+            } catch (err) {
+                document.getElementById('wakeStatus').innerHTML = '<span style="color:#ff5d5d;"><i class="fa-solid fa-triangle-exclamation"></i> 此瀏覽器無法啟用螢幕恆亮</span>';
+            }
         });
         function playTone(type, freq, dur) {
             if (!audioReady) return;
@@ -2052,29 +2194,36 @@
         let lastEqTime = null, eqBeepInterval;
         async function checkRealEarthquake() {
             try {
-                const res = await fetch(`https://opendata.cwa.gov.tw/api/v1/rest/datastore/E-A0101-001?Authorization=${CWA_API_KEY}&limit=1&format=JSON`);
+                const res = await fetch('/api/earthquake/latest');
                 const data = await res.json();
-                if (data.success === 'true') {
-                    const latestEq = data.records.Earthquake[0];
-                    const eqTime = latestEq.EarthquakeInfo.OriginTime;
-                    document.getElementById('eqStatus').innerHTML = '<span style="color:#2e7d32;"><i class="fa-solid fa-tower-broadcast"></i> 地震監控中</span>';
+                const status = document.getElementById('eqStatus');
+                if (data.status === 'ok' && data.item) {
+                    const latestEq = data.item;
+                    const eqTime = latestEq.originTime;
+                    status.innerHTML = data.stale
+                        ? `<span style="color:#ff9f1c;"><i class="fa-solid fa-clock-rotate-left"></i> 地震報告離線備援・${formatUpdatedAt(data.updatedAt)}</span>`
+                        : `<span style="color:#2e7d32;"><i class="fa-solid fa-file-waveform"></i> 最新地震報告監控・${formatUpdatedAt(data.updatedAt)}</span>`;
                     if (!lastEqTime) { lastEqTime = eqTime; return; }
-                    if (eqTime !== lastEqTime) {
+                    if (!data.stale && eqTime !== lastEqTime) {
                         lastEqTime = eqTime;
-                        const reportContent = latestEq.ReportContent;
-                        const magnitude = latestEq.EarthquakeInfo.EarthquakeMagnitude.MagnitudeValue;
-                        const depth = latestEq.EarthquakeInfo.FocalDepth;
+                        const reportContent = latestEq.reportContent;
+                        const magnitude = latestEq.magnitude;
+                        const depth = latestEq.depth;
                         triggerEqAlarm(`芮氏規模：<span style="color:#e74c3c; font-weight:bold;">${magnitude}</span><br>深度：${depth} 公里<br><br><span style="font-size: 2.2vw;">${reportContent}</span>`);
                     }
+                    return;
                 }
-            } catch (err) {}
+                status.innerHTML = `<span style="color:#ff5d5d;"><i class="fa-solid fa-triangle-exclamation"></i> ${data.message || '地震報告暫時無法取得'}</span>`;
+            } catch (err) {
+                document.getElementById('eqStatus').innerHTML = '<span style="color:#ff5d5d;"><i class="fa-solid fa-triangle-exclamation"></i> 地震報告連線失敗</span>';
+            }
         }
         function triggerEqAlarm(infoHtml) {
             document.body.classList.add('eq-active'); document.getElementById('eq-overlay').style.display = 'flex'; document.getElementById('eq-info-text').innerHTML = infoHtml;
             if (audioCtx && audioCtx.state === 'suspended') audioCtx.resume();
             playTone('square', 800, 0.3); eqBeepInterval = setInterval(() => playTone('square', 800, 0.3), 800);
         }
-        setInterval(checkRealEarthquake, 60000); setTimeout(checkRealEarthquake, 2000);
+        setInterval(checkRealEarthquake, lowPerformanceMode ? 5 * 60 * 1000 : 60 * 1000); setTimeout(checkRealEarthquake, 2000);
         document.getElementById('dismissEqBtn').addEventListener('click', () => { document.body.classList.remove('eq-active'); document.getElementById('eq-overlay').style.display = 'none'; clearInterval(eqBeepInterval); });
         
         function triggerAlarm() {
@@ -2085,6 +2234,26 @@
         document.getElementById('dismissAlarmBtn').addEventListener('click', () => {
             isAlarmRinging = false; document.body.classList.remove('alarm-active'); document.getElementById('alarm-overlay').style.display = 'none'; clearInterval(alarmSoundInterval); cancelAlarmBtn.click();
         });
+
+        // 常駐顯示器的定期清理：只釋放可重建的暫存資料，不刪除使用者設定。
+        function cleanupRuntimeMemory() {
+            newsList = newsList.slice(0, 20);
+            document.querySelectorAll('#news-container-wrapper .news-grid-page').forEach((node, index, nodes) => {
+                if (index < nodes.length - 1) node.remove();
+            });
+            if (lowPerformanceMode && !document.body.classList.contains('weather-rain')) {
+                rainDrops = [];
+            }
+            try {
+                const cached = JSON.parse(localStorage.getItem('smartDisplay_weatherCache') || 'null');
+                if (cached?.updatedAt && Date.now() - cached.updatedAt > 24 * 60 * 60 * 1000) {
+                    localStorage.removeItem('smartDisplay_weatherCache');
+                }
+            } catch {
+                localStorage.removeItem('smartDisplay_weatherCache');
+            }
+        }
+        setInterval(cleanupRuntimeMemory, 10 * 60 * 1000);
     </script>
 </body>
 </html>
